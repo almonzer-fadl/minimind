@@ -101,6 +101,7 @@ export default function Boards({ triggerCreate = false }: BoardsProps) {
     ));
   };
 
+
   const filteredBoards = boards.filter(board => 
     board.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
     board.description.toLowerCase().includes(searchTerm.toLowerCase())

@@ -9,6 +9,9 @@ import Overview from '@/components/dashboard/overview';
 import Boards from '@/components/dashboard/boards';
 import Tasks from '@/components/dashboard/tasks';
 import Notes from '@/components/dashboard/notes';
+import { SettingsModal } from '@/components/modals/settings-modal';
+import { NotificationsModal } from '@/components/modals/notifications-modal';
+import { ArchiveModal } from '@/components/modals/archive-modal';
 import {
   Menu
 } from 'lucide-react';
@@ -18,24 +21,24 @@ export default function DashboardPage() {
   const [activeView, setActiveView] = useState<'overview' | 'boards' | 'tasks' | 'notes'>('overview');
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
   const [triggerCreate, setTriggerCreate] = useState<string | null>(null);
+  const [showSettings, setShowSettings] = useState(false);
+  const [showNotifications, setShowNotifications] = useState(false);
+  const [showArchive, setShowArchive] = useState(false);
 
   const handleLogout = async () => {
     await logout();
   };
 
   const handleSettings = () => {
-    // TODO: Implement settings modal/page
-    alert('Settings feature coming soon!');
+    setShowSettings(true);
   };
 
   const handleNotifications = () => {
-    // TODO: Implement notifications modal/page
-    alert('Notifications feature coming soon!');
+    setShowNotifications(true);
   };
 
   const handleArchive = () => {
-    // TODO: Implement archive modal/page
-    alert('Archive feature coming soon!');
+    setShowArchive(true);
   };
 
   const handleCreateBoard = () => {
@@ -112,6 +115,21 @@ export default function DashboardPage() {
             </div>
           </main>
         </div>
+
+        {/* Modals */}
+        <SettingsModal 
+          isOpen={showSettings} 
+          onClose={() => setShowSettings(false)} 
+          user={user} 
+        />
+        <NotificationsModal 
+          isOpen={showNotifications} 
+          onClose={() => setShowNotifications(false)} 
+        />
+        <ArchiveModal 
+          isOpen={showArchive} 
+          onClose={() => setShowArchive(false)} 
+        />
       </ErrorBoundary>
     </AuthGuard>
   );
