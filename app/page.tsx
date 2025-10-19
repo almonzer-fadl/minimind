@@ -10,7 +10,7 @@ export default function LandingPage() {
       <div className="min-h-screen bg-background text-foreground">
         {/* Header */}
         <header className="sticky top-0 z-50 w-full border-b border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-          <div className="container flex h-14 max-w-screen-2xl items-center">
+          <div className="container mx-auto flex h-14 max-w-screen-2xl items-center">
             <div className="mr-4 flex">
               <Link href="/" className="mr-6 flex items-center space-x-2">
                 <div className="h-6 w-6 rounded bg-primary"></div>
@@ -46,7 +46,7 @@ export default function LandingPage() {
 
         {/* Hero Section */}
         <section className="space-y-6 pb-8 pt-6 md:pb-12 md:pt-10 lg:py-32">
-          <div className="container flex max-w-[64rem] flex-col items-center gap-4 text-center">
+          <div className="container mx-auto flex max-w-[64rem] flex-col items-center gap-4 text-center">
             <h1 className="font-heading text-4xl sm:text-6xl md:text-7xl lg:text-8xl tracking-tight">
               Tired of{' '}
               <span className="text-primary relative">
@@ -78,7 +78,7 @@ export default function LandingPage() {
         </section>
 
         {/* Features Section */}
-        <section id="features" className="container space-y-6 py-8 md:py-12 lg:py-24">
+        <section id="features" className="container mx-auto space-y-6 py-8 md:py-12 lg:py-24">
           <div className="mx-auto flex max-w-[58rem] flex-col items-center space-y-4 text-center">
             <h2 className="font-heading text-3xl leading-[1.1] sm:text-4xl md:text-6xl tracking-tight">
               Everything you need, nothing you don&apos;t
@@ -134,7 +134,7 @@ export default function LandingPage() {
         </section>
 
         {/* Security Section */}
-        <section id="security" className="container space-y-6 py-8 md:py-12 lg:py-24">
+        <section id="security" className="container mx-auto space-y-6 py-8 md:py-12 lg:py-24">
           <div className="mx-auto flex max-w-[58rem] flex-col items-center space-y-4 text-center">
             <h2 className="font-heading text-3xl leading-[1.1] sm:text-4xl md:text-6xl tracking-tight">
               Your data, your control
@@ -177,7 +177,7 @@ export default function LandingPage() {
         </section>
 
         {/* Cross-Platform Section */}
-        <section className="container space-y-6 py-8 md:py-12 lg:py-24">
+        <section className="container mx-auto space-y-6 py-8 md:py-12 lg:py-24">
           <div className="mx-auto flex max-w-[58rem] flex-col items-center space-y-4 text-center">
             <h2 className="font-heading text-3xl leading-[1.1] sm:text-4xl md:text-6xl tracking-tight">
               Works everywhere you do
@@ -215,7 +215,7 @@ export default function LandingPage() {
         </section>
 
         {/* CTA Section */}
-        <section className="container space-y-6 py-8 md:py-12 lg:py-24">
+        <section className="container mx-auto space-y-6 py-8 md:py-12 lg:py-24">
           <div className="mx-auto flex max-w-[58rem] flex-col items-center space-y-4 text-center">
             <h2 className="font-heading text-3xl leading-[1.1] sm:text-4xl md:text-6xl tracking-tight">
               Ready to simplify your productivity?
@@ -237,7 +237,7 @@ export default function LandingPage() {
 
         {/* Footer */}
         <footer className="border-t py-6 md:py-0">
-          <div className="container flex flex-col items-center justify-between gap-4 md:h-24 md:flex-row">
+          <div className="container mx-auto flex flex-col items-center justify-between gap-4 md:h-24 md:flex-row">
             <div className="flex flex-col items-center gap-4 px-8 md:flex-row md:gap-2 md:px-0">
               <div className="flex items-center space-x-2">
                 <div className="h-6 w-6 rounded bg-primary"></div>
