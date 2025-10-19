@@ -42,4 +42,5 @@ const withPWAConfig = withPWA({
   swDest: 'public/sw.js',
 });
 
-export default withPWAConfig(nextConfig);
+// PWA is temporarily disabled due to type compatibility issues
+export default nextConfig;

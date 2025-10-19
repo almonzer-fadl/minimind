@@ -29,8 +29,8 @@ export async function POST(request: NextRequest) {
     
     // Create JWT token
     const token = await createJWT({
-      id: result.user.id,
-      email: result.user.email,
+      id: result.user!.id,
+      email: result.user!.email,
     });
     
     // Create response with token
@@ -38,8 +38,8 @@ export async function POST(request: NextRequest) {
       { 
         message: 'Login successful',
         user: {
-          id: result.user.id,
-          email: result.user.email,
+          id: result.user!.id,
+          email: result.user!.email,
         }
       },
       { status: 200 }
@@ -61,7 +61,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         { 
           error: 'Validation failed',
-          details: error.errors 
+          details: error.issues 
         },
         { status: 400 }
       );

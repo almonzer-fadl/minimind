@@ -14,11 +14,11 @@ const updateBoardSchema = z.object({
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   return withAuth(request, async (req, user: AuthenticatedUser) => {
     try {
-      const boardId = params.id;
+      const boardId = (await params).id;
       
       // Get board with lists and cards
       const board = await db.query.boards.findFirst({
@@ -63,11 +63,11 @@ export async function GET(
 
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   return withAuth(request, async (req, user: AuthenticatedUser) => {
     try {
-      const boardId = params.id;
+      const boardId = (await params).id;
       const body = await request.json();
       
       // Validate input
@@ -108,7 +108,7 @@ export async function PUT(
         return NextResponse.json(
           { 
             error: 'Validation failed',
-            details: error.errors 
+            details: error.issues 
           },
           { status: 400 }
         );
@@ -125,11 +125,11 @@ export async function PUT(
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   return withAuth(request, async (req, user: AuthenticatedUser) => {
     try {
-      const boardId = params.id;
+      const boardId = (await params).id;
       
       // Check if board exists and belongs to user
       const existingBoard = await db.query.boards.findFirst({

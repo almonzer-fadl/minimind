@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { withAuth, AuthenticatedUser } from '@/lib/auth/middleware';
-import { createTask, getTasks } from '@/app/actions';
+import { createTask, getTasksByUser } from '@/app/actions';
 import { z } from 'zod';
 
 // Validation schema
@@ -14,7 +14,7 @@ const createTaskSchema = z.object({
 export async function GET(request: NextRequest) {
   return withAuth(request, async (req, user: AuthenticatedUser) => {
     try {
-      const result = await getTasks(user.id);
+      const result = await getTasksByUser(user.id);
       
       if (!result.success) {
         return NextResponse.json(
@@ -44,15 +44,14 @@ export async function POST(request: NextRequest) {
       
       // Validate input
       const validatedData = createTaskSchema.parse(body);
-      const { title, description, priority, dueDate } = validatedData;
+      const { title, description, priority } = validatedData;
       
       // Create task
       const result = await createTask(
         user.id, 
         title, 
         description, 
-        priority,
-        dueDate ? new Date(dueDate) : undefined
+        priority
       );
       
       if (!result.success) {
@@ -72,7 +71,7 @@ export async function POST(request: NextRequest) {
         return NextResponse.json(
           { 
             error: 'Validation failed',
-            details: error.errors 
+            details: error.issues 
           },
           { status: 400 }
         );

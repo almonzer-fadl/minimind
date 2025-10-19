@@ -299,8 +299,8 @@ export class OfflineOperations {
     return await offlineDb.syncOperations
       .where('status')
       .equals('pending')
-      .orderBy('timestamp')
-      .toArray();
+      .toArray()
+      .then(operations => operations.sort((a, b) => a.timestamp.getTime() - b.timestamp.getTime()));
   }
 
   static async markSyncOperationComplete(id: string) {

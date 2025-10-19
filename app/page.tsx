@@ -258,7 +258,7 @@ export default function LandingPage() {
               for something that actually works.
             </p>
             <div className="flex flex-col gap-4 sm:flex-row">
-              <Button variant="premium" size="xl" asChild className="group">
+              <Button variant="default" size="lg" asChild className="group">
                 <Link href="/auth/signup">
                   Start Building Your Mind
                   <ArrowRight className="ml-2 h-5 w-5 group-hover:translate-x-1 transition-transform duration-300" />
@@ -273,7 +273,6 @@ export default function LandingPage() {
           <div className="container mx-auto flex flex-col items-center justify-between gap-4 md:h-24 md:flex-row">
             <div className="flex flex-col items-center gap-4 px-8 md:flex-row md:gap-2 md:px-0">
               <div className="flex items-center space-x-2">
-                <div className="h-6 w-6 rounded bg-primary"></div>
                 <span className="font-bold">Minimind</span>
               </div>
               <p className="text-center text-sm leading-loose text-muted-foreground md:text-left">

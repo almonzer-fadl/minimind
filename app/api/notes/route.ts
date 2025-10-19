@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { withAuth, AuthenticatedUser } from '@/lib/auth/middleware';
-import { createNote, getNotes } from '@/app/actions';
+import { createNote, getNotesByUser } from '@/app/actions';
 import { z } from 'zod';
 
 // Validation schema
@@ -13,7 +13,7 @@ const createNoteSchema = z.object({
 export async function GET(request: NextRequest) {
   return withAuth(request, async (req, user: AuthenticatedUser) => {
     try {
-      const result = await getNotes(user.id);
+      const result = await getNotesByUser(user.id);
       
       if (!result.success) {
         return NextResponse.json(
@@ -65,7 +65,7 @@ export async function POST(request: NextRequest) {
         return NextResponse.json(
           { 
             error: 'Validation failed',
-            details: error.errors 
+            details: error.issues 
           },
           { status: 400 }
         );
