@@ -81,7 +81,7 @@ export default function LandingPage() {
         <section id="features" className="container space-y-6 py-8 md:py-12 lg:py-24">
           <div className="mx-auto flex max-w-[58rem] flex-col items-center space-y-4 text-center">
             <h2 className="font-heading text-3xl leading-[1.1] sm:text-4xl md:text-6xl tracking-tight">
-              Everything you need, nothing you don't
+              Everything you need, nothing you don&apos;t
             </h2>
             <p className="max-w-[85%] leading-relaxed text-muted-foreground sm:text-lg sm:leading-7 font-body">
               One app to replace them all. Clean, fast, and secure.
@@ -141,7 +141,7 @@ export default function LandingPage() {
             </h2>
             <p className="max-w-[85%] leading-relaxed text-muted-foreground sm:text-lg sm:leading-7 font-body">
               Built with privacy-first principles. Your data is encrypted, 
-              and we can't even read it.
+              and we can&apos;t even read it.
             </p>
           </div>
           <div className="mx-auto grid justify-center gap-4 sm:grid-cols-2 md:max-w-[64rem]">
@@ -154,7 +154,7 @@ export default function LandingPage() {
                   <h3 className="font-bold font-heading">End-to-End Encryption</h3>
                   <p className="text-sm text-muted-foreground font-body leading-relaxed">
                     All your data is encrypted on your device before it ever 
-                    leaves your browser. We can't read your notes, tasks, or boards.
+                    leaves your browser. We can&apos;t read your notes, tasks, or boards.
                   </p>
                 </div>
               </div>
@@ -168,7 +168,7 @@ export default function LandingPage() {
                   <h3 className="font-bold font-heading">Offline-First</h3>
                   <p className="text-sm text-muted-foreground font-body leading-relaxed">
                     Works everywhere, even without internet. Your data syncs 
-                    automatically when you're back online.
+                    automatically when you&apos;re back online.
                   </p>
                 </div>
               </div>
@@ -221,7 +221,7 @@ export default function LandingPage() {
               Ready to simplify your productivity?
             </h2>
             <p className="max-w-[85%] leading-relaxed text-muted-foreground sm:text-lg sm:leading-7 font-body">
-              Join thousands of users who've ditched their bloated productivity apps 
+              Join thousands of users who&apos;ve ditched their bloated productivity apps 
               for something that actually works.
             </p>
             <div className="flex flex-col gap-4 sm:flex-row">
