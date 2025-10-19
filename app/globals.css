@@ -150,9 +150,7 @@
 /* Elegant Focus States */
 .focus-elegant:focus {
   outline: none;
-  ring: 2px;
-  ring-color: rgba(59, 130, 246, 0.3);
-  ring-offset: 2px;
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.3);
 }
 
 /* Premium Card Styles */
