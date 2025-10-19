@@ -14,14 +14,19 @@ const registerSchema = z.object({
 
 export async function POST(request: NextRequest) {
   try {
+    console.log('Registration request received');
     const body = await request.json();
+    console.log('Request body:', body);
     
     // Validate input
     const validatedData = registerSchema.parse(body);
     const { email, password } = validatedData;
+    console.log('Validated data:', { email, password: '***' });
     
     // Check if user already exists
+    console.log('Checking if user exists...');
     const existingUser = await checkUserExists(email);
+    console.log('Existing user check result:', existingUser);
     if (existingUser) {
       return NextResponse.json(
         { error: 'User with this email already exists' },
@@ -30,7 +35,9 @@ export async function POST(request: NextRequest) {
     }
     
     // Create user
+    console.log('Creating user...');
     const result = await createUser(email, password);
+    console.log('Create user result:', result);
     
     if (!result.success) {
       return NextResponse.json(
@@ -39,6 +46,13 @@ export async function POST(request: NextRequest) {
       );
     }
     
+    if (!result.user) {
+      return NextResponse.json(
+        { error: 'User creation failed' },
+        { status: 500 }
+      );
+    }
+
     return NextResponse.json(
       { 
         message: 'User created successfully',
@@ -56,7 +70,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         { 
           error: 'Validation failed',
-          details: error.errors 
+          details: error.issues
         },
         { status: 400 }
       );
@@ -71,13 +85,24 @@ export async function POST(request: NextRequest) {
 }
 
 async function checkUserExists(email: string) {
-  const { db } = await import('@/lib/db');
-  const { users } = await import('@/lib/db/schema');
-  const { eq } = await import('drizzle-orm');
-  
-  const user = await db.query.users.findFirst({
-    where: eq(users.email, email)
-  });
-  
-  return user;
+  try {
+    console.log('checkUserExists: Starting database query...');
+    const { neon } = await import('@neondatabase/serverless');
+    
+    console.log('checkUserExists: Database imports successful');
+    // Use raw SQL approach to avoid Drizzle query issues
+    const sql = neon(process.env.DATABASE_URL!);
+    const userResult = await sql`
+      SELECT id, email, password_hash, encryption_key_hash, created_at, updated_at 
+      FROM users 
+      WHERE email = ${email}
+      LIMIT 1
+    `;
+    console.log('checkUserExists: Query successful, result:', userResult);
+    
+    return userResult.length > 0 ? userResult[0] : null;
+  } catch (error) {
+    console.error('checkUserExists error:', error);
+    throw error;
+  }
 }

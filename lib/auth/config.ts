@@ -1,13 +1,10 @@
 import { NextAuthOptions } from 'next-auth';
 import CredentialsProvider from 'next-auth/providers/credentials';
-import { DrizzleAdapter } from '@auth/drizzle-adapter';
-import { db } from '@/lib/db';
-import { users } from '@/lib/db/schema';
-import { eq } from 'drizzle-orm';
+import { neon } from '@neondatabase/serverless';
 import bcrypt from 'bcryptjs';
 
 export const authOptions: NextAuthOptions = {
-  adapter: DrizzleAdapter(db),
+  // No adapter - using JWT strategy only
   providers: [
     CredentialsProvider({
       name: 'credentials',
@@ -21,19 +18,25 @@ export const authOptions: NextAuthOptions = {
         }
 
         try {
-          // Find user by email
-          const user = await db.query.users.findFirst({
-            where: eq(users.email, credentials.email)
-          });
+          // Use raw SQL to find user by email
+          const sql = neon(process.env.DATABASE_URL!);
+          const userResult = await sql`
+            SELECT id, email, password_hash
+            FROM users 
+            WHERE email = ${credentials.email}
+            LIMIT 1
+          `;
 
-          if (!user) {
+          if (!userResult || userResult.length === 0) {
             return null;
           }
+
+          const user = userResult[0];
 
           // Verify password
           const isValidPassword = await bcrypt.compare(
             credentials.password,
-            user.passwordHash
+            user.password_hash
           );
 
           if (!isValidPassword) {

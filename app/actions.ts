@@ -1,27 +1,31 @@
 "use server";
 
-import { neon } from "@neondatabase/serverless";
 import { db } from "@/lib/db";
-import { users, boards, lists, cards, tasks, notes, syncQueue } from "@/lib/db/schema";
+import { users, boards, lists, cards, tasks, notes } from "@/lib/db/schema";
 import { eq, desc, asc } from "drizzle-orm";
 import bcrypt from "bcryptjs";
-import { hashPassword, verifyPassword, encryptUserData, decryptUserData } from "@/lib/encryption/crypto";
-
-// Database connection
-const sql = neon(process.env.DATABASE_URL!);
+import { EncryptionManager } from "@/lib/encryption/crypto";
 
 // User Actions
 export async function createUser(email: string, password: string) {
   try {
-    const hashedPassword = await hashPassword(password);
-    const encryptionKey = crypto.randomUUID(); // This will be derived from password in real implementation
-    const encryptionKeyHash = await hashPassword(encryptionKey);
+    const hashedPassword = await bcrypt.hash(password, 12);
     
-    const newUser = await db.insert(users).values({
-      email,
-      passwordHash: hashedPassword,
-      encryptionKeyHash,
-    }).returning();
+    // Generate proper encryption key using EncryptionManager
+    const encryptionManager = EncryptionManager.getInstance();
+    const salt = await EncryptionManager.getInstance().generateSalt();
+    const encryptionKey = await encryptionManager.generateUserKey();
+    const encryptionKeyHash = await bcrypt.hash(encryptionKey, 12);
+    
+    // Use raw SQL approach to avoid Drizzle query issues
+    const { neon } = await import('@neondatabase/serverless');
+    const sql = neon(process.env.DATABASE_URL!);
+    
+    const newUser = await sql`
+      INSERT INTO users (email, password_hash, encryption_key_hash, created_at, updated_at)
+      VALUES (${email}, ${hashedPassword}, ${encryptionKeyHash}, NOW(), NOW())
+      RETURNING id, email, created_at, updated_at
+    `;
     
     return { success: true, user: newUser[0] };
   } catch (error) {
@@ -32,86 +36,67 @@ export async function createUser(email: string, password: string) {
 
 export async function verifyUser(email: string, password: string) {
   try {
-    const user = await db.query.users.findFirst({
-      where: eq(users.email, email)
-    });
+    // Use raw SQL approach to avoid Drizzle query issues
+    const { neon } = await import('@neondatabase/serverless');
+    const sql = neon(process.env.DATABASE_URL!);
     
-    if (!user) {
+    const userResult = await sql`
+      SELECT id, email, password_hash, encryption_key_hash, created_at, updated_at
+      FROM users 
+      WHERE email = ${email}
+      LIMIT 1
+    `;
+    
+    if (!userResult || userResult.length === 0) {
       return { success: false, error: 'User not found' };
     }
     
-    const isValid = await verifyPassword(password, user.passwordHash);
-    
+    const user = userResult[0];
+    const isValid = await bcrypt.compare(password, user.password_hash);
     if (!isValid) {
       return { success: false, error: 'Invalid password' };
     }
     
-    return { success: true, user };
+    return { success: true, user: {
+      id: user.id,
+      email: user.email,
+      passwordHash: user.password_hash,
+      encryptionKeyHash: user.encryption_key_hash,
+      createdAt: user.created_at,
+      updatedAt: user.updated_at
+    }};
   } catch (error) {
     console.error('Error verifying user:', error);
     return { success: false, error: 'Authentication failed' };
   }
 }
 
-// Board Actions
-export async function getBoards(userId: string) {
+export async function getUserById(userId: string) {
   try {
-    const userBoards = await db.query.boards.findMany({
-      where: eq(boards.userId, userId),
-      orderBy: asc(boards.position),
-      with: {
-        lists: {
-          orderBy: asc(lists.position),
-          with: {
-            cards: {
-              orderBy: asc(cards.position)
-            }
-          }
-        }
-      }
+    const user = await db.query.users.findFirst({
+      where: eq(users.id, userId)
     });
     
-    // Decrypt board data
-    const decryptedBoards = userBoards.map(board => ({
-      ...board,
-      name: decryptUserData(board.nameEncrypted, 'encryption-key'), // This should use user's actual key
-      description: board.descriptionEncrypted ? decryptUserData(board.descriptionEncrypted, 'encryption-key') : null,
-      lists: board.lists.map(list => ({
-        ...list,
-        name: decryptUserData(list.nameEncrypted, 'encryption-key'),
-        cards: list.cards.map(card => ({
-          ...card,
-          title: decryptUserData(card.titleEncrypted, 'encryption-key'),
-          description: card.descriptionEncrypted ? decryptUserData(card.descriptionEncrypted, 'encryption-key') : null,
-        }))
-      }))
-    }));
+    if (!user) {
+      return { success: false, error: 'User not found' };
+    }
     
-    return { success: true, boards: decryptedBoards };
+    return { success: true, user };
   } catch (error) {
-    console.error('Error fetching boards:', error);
-    return { success: false, error: 'Failed to fetch boards' };
+    console.error('Error getting user:', error);
+    return { success: false, error: 'Failed to get user' };
   }
 }
 
+// Board Actions
 export async function createBoard(userId: string, name: string, description?: string) {
   try {
-    const encryptedName = encryptUserData(name, 'encryption-key'); // This should use user's actual key
-    const encryptedDescription = description ? encryptUserData(description, 'encryption-key') : null;
-    
-    // Get the next position
-    const lastBoard = await db.query.boards.findFirst({
-      where: eq(boards.userId, userId),
-      orderBy: desc(boards.position)
-    });
-    
-    const position = lastBoard ? lastBoard.position + 1 : 0;
-    
+    // Provide a default position (e.g., 0) to satisfy the required field
     const newBoard = await db.insert(boards).values({
       userId,
-      nameEncrypted: encryptedName,
-      descriptionEncrypted: encryptedDescription,
-      position,
+      nameEncrypted: name, // For now, store plain text
+      descriptionEncrypted: description || '',
+      position: 0, // Add default position value or compute as needed
     }).returning();
     
     return { success: true, board: newBoard[0] };
@@ -121,19 +106,28 @@ export async function createBoard(userId: string, name: string, description?: st
   }
 }
 
+export async function getBoardsByUser(userId: string) {
+  try {
+    const userBoards = await db.query.boards.findMany({
+      where: eq(boards.userId, userId),
+      orderBy: [asc(boards.createdAt)]
+    });
+    
+    return { success: true, boards: userBoards };
+  } catch (error) {
+    console.error('Error getting boards:', error);
+    return { success: false, error: 'Failed to get boards' };
+  }
+}
+
 export async function updateBoard(boardId: string, updates: { name?: string; description?: string }) {
   try {
-    const updateData: any = {};
-    
-    if (updates.name) {
-      updateData.nameEncrypted = encryptUserData(updates.name, 'encryption-key');
-    }
-    if (updates.description !== undefined) {
-      updateData.descriptionEncrypted = updates.description ? encryptUserData(updates.description, 'encryption-key') : null;
-    }
-    
     const updatedBoard = await db.update(boards)
-      .set({ ...updateData, updatedAt: new Date() })
+      .set({
+        nameEncrypted: updates.name,
+        descriptionEncrypted: updates.description,
+        updatedAt: new Date(),
+      })
       .where(eq(boards.id, boardId))
       .returning();
     
@@ -155,21 +149,11 @@ export async function deleteBoard(boardId: string) {
 }
 
 // List Actions
-export async function createList(boardId: string, name: string) {
+export async function createList(boardId: string, name: string, position: number) {
   try {
-    const encryptedName = encryptUserData(name, 'encryption-key');
-    
-    // Get the next position
-    const lastList = await db.query.lists.findFirst({
-      where: eq(lists.boardId, boardId),
-      orderBy: desc(lists.position)
-    });
-    
-    const position = lastList ? lastList.position + 1 : 0;
-    
     const newList = await db.insert(lists).values({
       boardId,
-      nameEncrypted: encryptedName,
+      nameEncrypted: name, // For now, store plain text
       position,
     }).returning();
     
@@ -180,12 +164,28 @@ export async function createList(boardId: string, name: string) {
   }
 }
 
-export async function updateList(listId: string, name: string) {
+export async function getListsByBoard(boardId: string) {
   try {
-    const encryptedName = encryptUserData(name, 'encryption-key');
+    const boardLists = await db.query.lists.findMany({
+      where: eq(lists.boardId, boardId),
+      orderBy: [asc(lists.position)]
+    });
     
+    return { success: true, lists: boardLists };
+  } catch (error) {
+    console.error('Error getting lists:', error);
+    return { success: false, error: 'Failed to get lists' };
+  }
+}
+
+export async function updateList(listId: string, updates: { name?: string; position?: number }) {
+  try {
     const updatedList = await db.update(lists)
-      .set({ nameEncrypted: encryptedName, updatedAt: new Date() })
+      .set({
+        nameEncrypted: updates.name,
+        position: updates.position,
+        updatedAt: new Date(),
+      })
       .where(eq(lists.id, listId))
       .returning();
     
@@ -207,23 +207,12 @@ export async function deleteList(listId: string) {
 }
 
 // Card Actions
-export async function createCard(listId: string, title: string, description?: string) {
+export async function createCard(listId: string, title: string, description?: string, position: number = 0) {
   try {
-    const encryptedTitle = encryptUserData(title, 'encryption-key');
-    const encryptedDescription = description ? encryptUserData(description, 'encryption-key') : null;
-    
-    // Get the next position
-    const lastCard = await db.query.cards.findFirst({
-      where: eq(cards.listId, listId),
-      orderBy: desc(cards.position)
-    });
-    
-    const position = lastCard ? lastCard.position + 1 : 0;
-    
     const newCard = await db.insert(cards).values({
       listId,
-      titleEncrypted: encryptedTitle,
-      descriptionEncrypted: encryptedDescription,
+      titleEncrypted: title, // For now, store plain text
+      descriptionEncrypted: description || '',
       position,
     }).returning();
     
@@ -234,22 +223,29 @@ export async function createCard(listId: string, title: string, description?: st
   }
 }
 
-export async function updateCard(cardId: string, updates: { title?: string; description?: string; dueDate?: Date }) {
+export async function getCardsByList(listId: string) {
   try {
-    const updateData: any = { updatedAt: new Date() };
+    const listCards = await db.query.cards.findMany({
+      where: eq(cards.listId, listId),
+      orderBy: [asc(cards.position)]
+    });
     
-    if (updates.title) {
-      updateData.titleEncrypted = encryptUserData(updates.title, 'encryption-key');
-    }
-    if (updates.description !== undefined) {
-      updateData.descriptionEncrypted = updates.description ? encryptUserData(updates.description, 'encryption-key') : null;
-    }
-    if (updates.dueDate) {
-      updateData.dueDate = updates.dueDate;
-    }
-    
+    return { success: true, cards: listCards };
+  } catch (error) {
+    console.error('Error getting cards:', error);
+    return { success: false, error: 'Failed to get cards' };
+  }
+}
+
+export async function updateCard(cardId: string, updates: { title?: string; description?: string; position?: number }) {
+  try {
     const updatedCard = await db.update(cards)
-      .set(updateData)
+      .set({
+        titleEncrypted: updates.title,
+        descriptionEncrypted: updates.description,
+        position: updates.position,
+        updatedAt: new Date(),
+      })
       .where(eq(cards.id, cardId))
       .returning();
     
@@ -271,36 +267,12 @@ export async function deleteCard(cardId: string) {
 }
 
 // Task Actions
-export async function getTasks(userId: string) {
+export async function createTask(userId: string, title: string, description?: string, priority: number = 1) {
   try {
-    const userTasks = await db.query.tasks.findMany({
-      where: eq(tasks.userId, userId),
-      orderBy: desc(tasks.createdAt)
-    });
-    
-    // Decrypt task data
-    const decryptedTasks = userTasks.map(task => ({
-      ...task,
-      title: decryptUserData(task.titleEncrypted, 'encryption-key'),
-      description: task.descriptionEncrypted ? decryptUserData(task.descriptionEncrypted, 'encryption-key') : null,
-    }));
-    
-    return { success: true, tasks: decryptedTasks };
-  } catch (error) {
-    console.error('Error fetching tasks:', error);
-    return { success: false, error: 'Failed to fetch tasks' };
-  }
-}
-
-export async function createTask(userId: string, title: string, description?: string, priority: number = 0) {
-  try {
-    const encryptedTitle = encryptUserData(title, 'encryption-key');
-    const encryptedDescription = description ? encryptUserData(description, 'encryption-key') : null;
-    
     const newTask = await db.insert(tasks).values({
       userId,
-      titleEncrypted: encryptedTitle,
-      descriptionEncrypted: encryptedDescription,
+      titleEncrypted: title, // For now, store plain text
+      descriptionEncrypted: description || '',
       priority,
     }).returning();
     
@@ -311,28 +283,30 @@ export async function createTask(userId: string, title: string, description?: st
   }
 }
 
-export async function updateTask(taskId: string, updates: { title?: string; description?: string; completed?: boolean; priority?: number; dueDate?: Date }) {
+export async function getTasksByUser(userId: string) {
   try {
-    const updateData: any = { updatedAt: new Date() };
+    const userTasks = await db.query.tasks.findMany({
+      where: eq(tasks.userId, userId),
+      orderBy: [desc(tasks.createdAt)]
+    });
     
-    if (updates.title) {
-      updateData.titleEncrypted = encryptUserData(updates.title, 'encryption-key');
-    }
-    if (updates.description !== undefined) {
-      updateData.descriptionEncrypted = updates.description ? encryptUserData(updates.description, 'encryption-key') : null;
-    }
-    if (updates.completed !== undefined) {
-      updateData.completed = updates.completed;
-    }
-    if (updates.priority !== undefined) {
-      updateData.priority = updates.priority;
-    }
-    if (updates.dueDate) {
-      updateData.dueDate = updates.dueDate;
-    }
-    
+    return { success: true, tasks: userTasks };
+  } catch (error) {
+    console.error('Error getting tasks:', error);
+    return { success: false, error: 'Failed to get tasks' };
+  }
+}
+
+export async function updateTask(taskId: string, updates: { title?: string; description?: string; completed?: boolean; priority?: number }) {
+  try {
     const updatedTask = await db.update(tasks)
-      .set(updateData)
+      .set({
+        titleEncrypted: updates.title,
+        descriptionEncrypted: updates.description,
+        completed: updates.completed,
+        priority: updates.priority,
+        updatedAt: new Date(),
+      })
       .where(eq(tasks.id, taskId))
       .returning();
     
@@ -354,39 +328,13 @@ export async function deleteTask(taskId: string) {
 }
 
 // Note Actions
-export async function getNotes(userId: string) {
-  try {
-    const userNotes = await db.query.notes.findMany({
-      where: eq(notes.userId, userId),
-      orderBy: desc(notes.updatedAt)
-    });
-    
-    // Decrypt note data
-    const decryptedNotes = userNotes.map(note => ({
-      ...note,
-      title: decryptUserData(note.titleEncrypted, 'encryption-key'),
-      content: decryptUserData(note.contentEncrypted, 'encryption-key'),
-      tags: note.tagsEncrypted ? decryptUserData(note.tagsEncrypted, 'encryption-key') : null,
-    }));
-    
-    return { success: true, notes: decryptedNotes };
-  } catch (error) {
-    console.error('Error fetching notes:', error);
-    return { success: false, error: 'Failed to fetch notes' };
-  }
-}
-
 export async function createNote(userId: string, title: string, content: string, tags?: string) {
   try {
-    const encryptedTitle = encryptUserData(title, 'encryption-key');
-    const encryptedContent = encryptUserData(content, 'encryption-key');
-    const encryptedTags = tags ? encryptUserData(tags, 'encryption-key') : null;
-    
     const newNote = await db.insert(notes).values({
       userId,
-      titleEncrypted: encryptedTitle,
-      contentEncrypted: encryptedContent,
-      tagsEncrypted: encryptedTags,
+      titleEncrypted: title, // For now, store plain text
+      contentEncrypted: content, // For now, store plain text
+      tagsEncrypted: tags || '',
     }).returning();
     
     return { success: true, note: newNote[0] };
@@ -396,22 +344,29 @@ export async function createNote(userId: string, title: string, content: string,
   }
 }
 
+export async function getNotesByUser(userId: string) {
+  try {
+    const userNotes = await db.query.notes.findMany({
+      where: eq(notes.userId, userId),
+      orderBy: [desc(notes.createdAt)]
+    });
+    
+    return { success: true, notes: userNotes };
+  } catch (error) {
+    console.error('Error getting notes:', error);
+    return { success: false, error: 'Failed to get notes' };
+  }
+}
+
 export async function updateNote(noteId: string, updates: { title?: string; content?: string; tags?: string }) {
   try {
-    const updateData: any = { updatedAt: new Date() };
-    
-    if (updates.title) {
-      updateData.titleEncrypted = encryptUserData(updates.title, 'encryption-key');
-    }
-    if (updates.content) {
-      updateData.contentEncrypted = encryptUserData(updates.content, 'encryption-key');
-    }
-    if (updates.tags !== undefined) {
-      updateData.tagsEncrypted = updates.tags ? encryptUserData(updates.tags, 'encryption-key') : null;
-    }
-    
     const updatedNote = await db.update(notes)
-      .set(updateData)
+      .set({
+        titleEncrypted: updates.title,
+        contentEncrypted: updates.content,
+        tagsEncrypted: updates.tags,
+        updatedAt: new Date(),
+      })
       .where(eq(notes.id, noteId))
       .returning();
     
@@ -432,30 +387,28 @@ export async function deleteNote(noteId: string) {
   }
 }
 
-// Sync Actions
-export async function getPendingSyncOperations(userId: string) {
+// Encryption helper functions
+export async function encryptUserData(data: string, password: string, salt: string): Promise<string> {
   try {
-    const pendingOps = await db.query.syncQueue.findMany({
-      where: eq(syncQueue.userId, userId),
-      orderBy: asc(syncQueue.createdAt)
-    });
-    
-    return { success: true, operations: pendingOps };
+    const encryptionManager = EncryptionManager.getInstance();
+    return await encryptionManager.encrypt(data, password, salt);
   } catch (error) {
-    console.error('Error fetching sync operations:', error);
-    return { success: false, error: 'Failed to fetch sync operations' };
+    console.error('Error encrypting data:', error);
+    throw error;
   }
 }
 
-export async function markSyncOperationComplete(operationId: string) {
+export async function decryptUserData(encryptedData: string, password: string, salt: string): Promise<string> {
   try {
-    await db.update(syncQueue)
-      .set({ status: 'synced', syncedAt: new Date() })
-      .where(eq(syncQueue.id, operationId));
-    
-    return { success: true };
+    const encryptionManager = EncryptionManager.getInstance();
+    return await encryptionManager.decrypt(encryptedData, password, salt);
   } catch (error) {
-    console.error('Error marking sync operation complete:', error);
-    return { success: false, error: 'Failed to mark sync operation complete' };
+    console.error('Error decrypting data:', error);
+    throw error;
   }
+}
+
+export async function generateSalt(): Promise<string> {
+  const encryptionManager = EncryptionManager.getInstance();
+  return encryptionManager.generateSalt();
 }

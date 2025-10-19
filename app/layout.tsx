@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Playfair_Display, Source_Serif_4, Inter } from "next/font/google";
+import { Providers } from "@/components/providers";
 import "./globals.css";
 
 const playfairDisplay = Playfair_Display({
@@ -35,7 +36,9 @@ export default function RootLayout({
       <body
         className={`${playfairDisplay.variable} ${sourceSerif.variable} ${inter.variable} antialiased`}
       >
-        {children}
+        <Providers>
+          {children}
+        </Providers>
       </body>
     </html>
   );
