@@ -191,7 +191,7 @@ export function Sidebar({ activeView, setActiveView, user, onLogout, isMobileOpe
               className="hidden lg:flex"
               onClick={() => setIsCollapsed(!isCollapsed)}
             >
-              {isCollapsed ? <ChevronRight className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4 rotate-90" />}
+              {isCollapsed ? <ChevronRight className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
             </Button>
             <Button
               variant="ghost"
