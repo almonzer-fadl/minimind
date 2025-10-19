@@ -3,9 +3,7 @@ import withPWA from "next-pwa";
 
 const nextConfig: NextConfig = {
   /* config options here */
-  experimental: {
-    serverComponentsExternalPackages: ['@neondatabase/serverless']
-  },
+  serverExternalPackages: ['@neondatabase/serverless'],
   images: {
     domains: ['localhost'],
   },
