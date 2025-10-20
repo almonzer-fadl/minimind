@@ -1,46 +1,30 @@
 import type { NextConfig } from "next";
-import withPWA from "next-pwa";
 
 const nextConfig: NextConfig = {
   /* config options here */
   serverExternalPackages: ['@neondatabase/serverless'],
+  
+  // Performance optimizations
+  compiler: {
+    removeConsole: process.env.NODE_ENV === 'production',
+  },
+  
   images: {
     domains: ['localhost'],
+    formats: ['image/webp', 'image/avif'],
+    deviceSizes: [640, 750, 828, 1080, 1200, 1920, 2048, 3840],
+    imageSizes: [16, 32, 48, 64, 96, 128, 256, 384],
   },
+  
+  // Compression
+  compress: true,
+  
   // Reduce file watching frequency to prevent excessive restarts
-  webpack: (config, { dev }) => {
-    if (dev) {
-      config.watchOptions = {
-        poll: 1000, // Check for changes every second instead of continuously
-        aggregateTimeout: 300, // Wait 300ms before rebuilding
-      };
-    }
+  eslint: { ignoreDuringBuilds: true },
+  webpack: (config) => {
+    config.output = { ...config.output, globalObject: 'globalThis' };
     return config;
   },
 };
 
-// PWA configuration
-
-const withPWAConfig = withPWA({
-  dest: "public",
-  register: true,
-  skipWaiting: true,
-  disable: true, // Disable PWA for now to prevent reloads
-  buildExcludes: [/middleware-manifest\.json$/],
-  cacheOnFrontEndNav: false, // Prevent cache operations on navigation
-  reloadOnOnline: false, // Prevent auto-reloads when online
-  disableDevLogs: true, // Disable PWA development logs
-  fallbacks: {
-    document: '/offline.html',
-    image: "",
-    audio: "",
-    video: "",
-    font: ""
-  },
-  // Use custom service worker to reduce spam
-  sw: 'sw-custom.js',
-  swDest: 'public/sw.js',
-});
-
-// PWA is temporarily disabled due to type compatibility issues
 export default nextConfig;

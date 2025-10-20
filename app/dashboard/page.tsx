@@ -93,7 +93,8 @@ export default function DashboardPage() {
           {/* Main Content */}
           <main className="flex-1 overflow-auto min-h-screen">
             {/* Mobile Header */}
-            <div className="lg:hidden bg-white border-b border-gray-200 p-4 flex items-center gap-4">
+            <div className="lg:hidden bg-white border-b border-gray-200 p-4 flex items-center justify-between">
+              <div className="flex items-center gap-4">
               <Button
                 variant="ghost"
                 size="sm"
@@ -102,6 +103,7 @@ export default function DashboardPage() {
                 <Menu className="w-5 h-5" />
               </Button>
               <h1 className="text-lg font-semibold text-gray-900">Minimind</h1>
+              </div>
             </div>
 
             <div className="p-8">
